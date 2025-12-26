@@ -8,6 +8,11 @@ const (
 	RedisKeyPricePrefix = "price:"
 )
 
+// Redis Pub/Sub channels
+const (
+	PubSubChannelSwaps = "swaps:live"
+)
+
 // Limits
 const (
 	MaxRecentSwaps     = 100
