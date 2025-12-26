@@ -1,11 +1,11 @@
-module solana-swap-indexer
+module github.com/aman-zulfiqar/solana-swap-indexer
 
 go 1.25.4
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.42.0
-	github.com/gorilla/websocket v1.5.3
 	github.com/redis/go-redis/v9 v9.17.2
+	github.com/sirupsen/logrus v1.9.3
 )
 
 require (
