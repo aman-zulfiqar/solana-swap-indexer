@@ -1,49 +1,122 @@
-// ============================================================================
-// cmd/subscriber/main.go - Example Subscriber (Consumer)
-// ============================================================================
 package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"solana-swap-indexer/internal/cache"
-	"solana-swap-indexer/internal/models"
+	"github.com/aman-zulfiqar/solana-swap-indexer/internal/cache"
+	"github.com/aman-zulfiqar/solana-swap-indexer/internal/config"
+	"github.com/aman-zulfiqar/solana-swap-indexer/internal/models"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	// Initialize logger
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: "15:04:05",
+	})
+
+	// Set log level from env (default: warn to keep output clean)
+	logLevel := os.Getenv("LOG_LEVEL")
+	switch logLevel {
+	case "debug":
+		logger.SetLevel(logrus.DebugLevel)
+	case "info":
+		logger.SetLevel(logrus.InfoLevel)
+	case "error":
+		logger.SetLevel(logrus.ErrorLevel)
+	default:
+		logger.SetLevel(logrus.WarnLevel)
+	}
+
+	// Load configuration
+	cfg := config.Load()
+
+	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Handle graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	pubsub := cache.NewPubSubManager("localhost:6379")
-
-	log.Println("👂 Starting swap subscriber...")
-
-	// Subscribe to all swaps
-	go pubsub.Subscribe(ctx, "swaps:all", func(swap *models.SwapEvent) {
-		log.Printf("📨 Received: %s | %s | %.2f %s -> %.2f %s | Price: %.2f",
-			swap.Signature[:8], swap.Pair, swap.AmountIn, swap.TokenIn,
-			swap.AmountOut, swap.TokenOut, swap.Price)
+	// Connect to Redis
+	redisCache, err := cache.NewRedisCache(ctx, cache.RedisConfig{
+		Addr:   cfg.RedisAddr,
+		Logger: logger,
 	})
+	if err != nil {
+		logger.WithError(err).Fatal("failed to connect to Redis")
+	}
+	defer redisCache.Close()
 
-	// Subscribe to specific pair
-	go pubsub.Subscribe(ctx, "swaps:pair:SOL/USDC", func(swap *models.SwapEvent) {
-		log.Printf("💰 SOL/USDC Swap: %.2f @ %.2f", swap.AmountIn, swap.Price)
-	})
+	// Subscribe to swaps channel
+	swapChan, err := redisCache.SubscribeSwaps(ctx)
+	if err != nil {
+		logger.WithError(err).Fatal("failed to subscribe to swaps")
+	}
 
-	// Subscribe to pattern (all pairs)
-	go pubsub.PSubscribe(ctx, "swaps:pair:*", func(swap *models.SwapEvent) {
-		log.Printf("🔍 Pattern match: %s", swap.Pair)
-	})
+	// Print header
+	printHeader()
 
-	log.Println("✅ Subscriber running. Press Ctrl+C to stop.")
+	// Process swaps in background
+	go func() {
+		for swap := range swapChan {
+			printSwap(swap)
+		}
+	}()
 
+	// Wait for shutdown signal
 	<-sigChan
-	log.Println("🛑 Shutting down subscriber...")
+	fmt.Println("\n\nShutting down...")
+	cancel()
+}
+
+func printHeader() {
+	fmt.Println()
+	fmt.Println("╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗")
+	fmt.Println("║                              Live Swap Viewer - Solana Swap Indexer (Pub/Sub)                              ║")
+	fmt.Println("╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣")
+	fmt.Println("║  Time     │ Pair                 │ Amount In              │ Amount Out             │ Price        │ Sig    ║")
+	fmt.Println("╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝")
+}
+
+func printSwap(swap *models.SwapEvent) {
+	// Truncate pair for display
+	pair := swap.Pair
+	if len(pair) > 18 {
+		pair = pair[:18]
+	}
+
+	// Format amounts with token symbols
+	amountIn := fmt.Sprintf("%.4f %s", swap.AmountIn, truncateToken(swap.TokenIn))
+	amountOut := fmt.Sprintf("%.4f %s", swap.AmountOut, truncateToken(swap.TokenOut))
+
+	// Truncate signature
+	sig := swap.Signature
+	if len(sig) > 8 {
+		sig = sig[:8]
+	}
+
+	fmt.Printf("[%s] %-18s │ %20s │ %20s │ %12.6f │ %s\n",
+		swap.Timestamp.Format("15:04:05"),
+		pair,
+		amountIn,
+		amountOut,
+		swap.Price,
+		sig,
+	)
+}
+
+func truncateToken(token string) string {
+	if len(token) > 12 {
+		return token[:4] + "..." + token[len(token)-4:]
+	}
+	return token
 }
