@@ -6,6 +6,7 @@ Real-time indexer for tracking Solana DEX swaps with Redis caching, ClickHouse a
 
 - **Real-time swap tracking** from Raydium (extensible to Orca, Jupiter)
 - **Redis Pub/Sub** for instant event broadcasting to multiple consumers
+¬- **AI agent (Go/LangChain)** for natural language questions over ClickHouse data
 - **Multiple RPC providers**: Public RPC or Triton
 - **Redis cache** for fast recent data access and token prices
 - **ClickHouse** for long-term analytics and time-series queries
@@ -155,6 +156,29 @@ All settings via environment variables:
 | `HTTP_TIMEOUT` | `30s` | HTTP request timeout |
 | `MAX_RETRIES` | `3` | Max retry attempts |
 | `RETRY_BACKOFF` | `1s` | Initial backoff duration |
+| `OPENROUTER_API_KEY` | - | OpenRouter API key for AI agent |
+
+## AI Agent (Go/LangChain + OpenRouter)
+
+The AI agent lets you ask natural-language questions about swaps; it generates ClickHouse SQL under the hood.
+
+### Run the AI Agent (CLI)
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...
+
+go run cmd/ai-agent/main.go
+```
+
+Examples:
+
+```text
+> What were the top 5 pairs by total amount_out in the last 24 hours?
+> Show the average price for SOL/USDC over the last 6 hours.
+> Which DEX had the highest total volume today?
+```
+
+Output includes the generated SQL and a concise answer.
 
 ## Data Storage
 
