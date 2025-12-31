@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,6 +30,9 @@ type Config struct {
 	// Stream provider
 	StreamProvider string
 	TritonAPIKey   string
+
+	// LLM / OpenRouter settings
+	OpenRouterAPIKey string
 }
 
 func Load() *Config {
@@ -53,6 +58,9 @@ func Load() *Config {
 		// Stream
 		StreamProvider: getEnv("STREAM_PROVIDER", "rpc"),
 		TritonAPIKey:   getEnv("TRITON_API_KEY", ""),
+
+		// LLM / OpenRouter
+		OpenRouterAPIKey: getEnv("OPENROUTER_API_KEY", "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"),
 	}
 }
 
@@ -79,4 +87,25 @@ func getDurationEnv(key string, defaultVal time.Duration) time.Duration {
 		}
 	}
 	return defaultVal
+}
+
+// Validate verifies required configuration values are present.
+func (c *Config) Validate() error {
+	var missing []string
+	if c.ClickHouseAddr == "" {
+		missing = append(missing, "CLICKHOUSE_ADDR")
+	}
+	if c.RedisAddr == "" {
+		missing = append(missing, "REDIS_ADDR")
+	}
+	if c.RPCUrl == "" {
+		missing = append(missing, "SOLANA_RPC_URL")
+	}
+	if c.ClickHouseDatabase == "" {
+		missing = append(missing, "CLICKHOUSE_DATABASE")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required env(s): %s", strings.Join(missing, ", "))
+	}
+	return nil
 }
