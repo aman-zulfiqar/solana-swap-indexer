@@ -37,6 +37,9 @@ func main() {
 
 	// Load configuration
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		logger.WithError(err).Fatal("invalid configuration")
+	}
 
 	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
