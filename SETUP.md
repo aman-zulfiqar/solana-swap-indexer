@@ -2,33 +2,6 @@
 
 Complete setup and usage guide for the Solana Swap Indexer.
 
-## Table of Contents
-
-1. [Prerequisites](#prerequisites)
-2. [Installation](#installation)
-3. [Infrastructure Setup](#infrastructure-setup)
-4. [Running the Indexer](#running-the-indexer)
-5. [Configuration Reference](#configuration-reference)
-6. [Viewing Data](#viewing-data)
-7. [Query Examples](#query-examples)
-8. [Troubleshooting](#troubleshooting)
-9. [Stopping Services](#stopping-services)
-
----
-
-## Prerequisites
-
-- Go 1.21 or higher
-- Docker & Docker Compose
-- Git
-
-Verify installations:
-```bash
-go version    # go1.21+
-docker --version
-docker-compose --version
-```
-
 ---
 
 ## Installation
@@ -70,25 +43,6 @@ docker-compose up -d
 # Verify services are running
 docker-compose ps
 ```
-
-Expected output:
-```
-NAME                 STATUS
-solana-redis         running (healthy)
-solana-clickhouse    running
-redis-commander      running
-tabix                running
-```
-
-### Service Endpoints
-
-| Service | Port | Protocol | Description |
-|---------|------|----------|-------------|
-| Redis | 6379 | TCP | Cache storage |
-| ClickHouse | 9000 | TCP (Native) | Analytics DB |
-| ClickHouse | 8123 | HTTP | REST API |
-| Redis Commander | 8081 | HTTP | Redis Web UI |
-| Tabix | 8080 | HTTP | ClickHouse Web UI |
 
 ### Initialize ClickHouse Schema
 
@@ -135,21 +89,6 @@ Expected output:
 2024-12-24 15:30:00 level=info msg="indexer running, press Ctrl+C to stop"
 ```
 
-### Using Triton (Higher Rate Limits)
-
-```bash
-export STREAM_PROVIDER=triton
-export TRITON_API_KEY=your_api_key_here
-go run .
-```
-
-### Custom RPC Endpoint
-
-```bash
-export SOLANA_RPC_URL=https://your-rpc-endpoint.com
-go run .
-```
-
 ### Build and Run Binary
 
 ```bash
@@ -161,62 +100,6 @@ go build -o indexer .
 ```
 
 ---
-
-## Configuration Reference
-
-All configuration is via environment variables:
-
-### Core Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `STREAM_PROVIDER` | `rpc` | Provider: `rpc` or `triton` |
-| `SOLANA_RPC_URL` | `https://api.mainnet-beta.solana.com` | Solana RPC endpoint |
-| `POLL_INTERVAL` | `30s` | How often to poll for new transactions |
-
-### Triton Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TRITON_API_KEY` | - | Required when `STREAM_PROVIDER=triton` |
-
-### Redis Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_ADDR` | `localhost:6379` | Redis server address |
-
-### ClickHouse Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLICKHOUSE_ADDR` | `localhost:9000` | ClickHouse server address |
-| `CLICKHOUSE_DATABASE` | `solana` | Database name |
-| `CLICKHOUSE_USERNAME` | `default` | Username |
-| `CLICKHOUSE_PASSWORD` | *(empty)* | Password |
-
-### HTTP Client Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HTTP_TIMEOUT` | `30s` | Request timeout |
-| `MAX_RETRIES` | `3` | Max retry attempts on failure |
-| `RETRY_BACKOFF` | `1s` | Initial backoff duration |
-
-### Example: Full Configuration
-
-```bash
-export STREAM_PROVIDER=rpc
-export SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
-export POLL_INTERVAL=30s
-export REDIS_ADDR=localhost:6379
-export CLICKHOUSE_ADDR=localhost:9000
-export CLICKHOUSE_DATABASE=solana
-export HTTP_TIMEOUT=30s
-export MAX_RETRIES=3
-
-cd cmd/indexer && go run .
-```
 
 ---
 
@@ -539,44 +422,38 @@ cd cmd/indexer && go run .
 
 ---
 
-## Project Structure Reference
+# Solana Swap Indexer - Example Queries
 
-```
-solana-swap-indexer/
-├── cmd/
-│   └── indexer/
-│       └── main.go              # Application entry point
-├── internal/
-│   ├── config/
-│   │   └── config.go            # Environment configuration
-│   ├── constants/
-│   │   └── constants.go         # Named constants, token maps
-│   ├── rpc/
-│   │   ├── client.go            # HTTP client with retry
-│   │   └── types.go             # RPC response types
-│   ├── storage/
-│   │   └── interfaces.go        # SwapCache, SwapStore interfaces
-│   ├── cache/
-│   │   ├── redis.go             # Redis implementation
-│   │   └── clickhouse.go        # ClickHouse implementation
-│   ├── stream/
-│   │   └── rpc_poller.go        # Transaction polling
-│   └── models/
-│       └── swap.go              # SwapEvent data model
-├── docker-compose.yml           # Docker infrastructure
-├── init.sql                     # ClickHouse schema
-├── go.mod                       # Go module definition
-├── README.md                    # Project overview
-└── SETUP.md                     # This file
-```
+## Basic Stats
+- "Show the last 20 swaps with signature, pair, amount_in, amount_out, price."
+- "Top 10 trading pairs by total amount_out in the last 24 hours."
+- "Which tokens have the highest number of swaps in the last 7 days?"
+- "Average price of SOL/USDC over the last 6 hours."
+- "Give me min, max, and avg price for SOL/USDT today."
 
----
+## Time-based Volume / Activity
+- "Hourly swap count and average price for SOL/USDC in the last 24 hours."
+- "Daily total USDC volume across all pairs for the last 7 days."
+- "What was total SOL volume (amount_out in SOL) in the last 12 hours?"
+- "Which hour today had the highest total swap volume?"
 
-## Next Steps
+## DEX / Pool Comparisons
+- "Compare total amount_out volume by dex in the last 24 hours."
+- "For Raydium only, top 5 pairs by swap count in the last 3 days."
+- "Which pool has the highest average price volatility in the last 48 hours?"
 
-After setup is complete:
+## Whale / Anomaly-ish Queries
+- "Show the 20 largest swaps by amount_out in the last 24 hours."
+- "Any swaps where price was more than 5x the average price for that pair in the last 7 days?"
+- "Which pairs have extremely large amount_out values but very small price (possible rugs)?"
+- "Find all swaps today where amount_out > 1,000,000 of any token."
 
-1. **Monitor logs** - Watch for successful swap parsing
-2. **Query data** - Use ClickHouse for analytics
-3. **Extend** - Add more DEXs in `internal/constants/constants.go`
-4. **Scale** - Deploy to production with proper RPC provider
+## Pair-focused Questions
+- "For pair SOL/USDC, show total volume, swap count, and average price in the last 24 hours."
+- "For SOL/USDT, show a 1-hour time series of avg price and volume for the last 12 hours."
+- "Which pairs had zero swaps in the last 24 hours but had swaps in the previous week?"
+
+## Sanity / Debug Prompts
+- "What’s the full schema of solana.swaps and a sample of 5 rows?"
+- "List distinct pairs ordered by swap count descending."
+- "Show 10 random swaps to inspect raw data: signature, pair, token_in, token_out, amount_in, amount_out, price."
