@@ -42,11 +42,16 @@ func NewRedisCache(ctx context.Context, cfg RedisConfig) (*RedisCache, error) {
 	}
 
 	cfg.Logger.WithField("addr", cfg.Addr).Info("connected to Redis")
-
+	return NewRedisCacheFromClient(client, cfg.Logger), nil
+}
+func NewRedisCacheFromClient(client *redis.Client, logger *logrus.Logger) *RedisCache {
+	if logger == nil {
+		logger = logrus.New()
+	}
 	return &RedisCache{
 		client: client,
-		logger: cfg.Logger,
-	}, nil
+		logger: logger,
+	}
 }
 
 // AddRecentSwap adds a swap to the recent swaps list
