@@ -51,6 +51,17 @@ func NewAgent(ctx context.Context, cfg AgentConfig) (*Agent, error) {
 		cfg.Model = "openai/gpt-4.1-mini"
 	}
 
+	// Mask API key for logging (show first 8 chars)
+	maskedKey := cfg.OpenRouterAPIKey
+	if len(maskedKey) > 12 {
+		maskedKey = maskedKey[:8] + "..." + maskedKey[len(maskedKey)-4:]
+	}
+	cfg.Logger.WithFields(logrus.Fields{
+		"api_key":  maskedKey,
+		"base_url": "https://openrouter.ai/api/v1",
+		"model":    cfg.Model,
+	}).Debug("initializing OpenRouter LLM client")
+
 	// Initialise LLM backed by OpenRouter (OpenAI-compatible API).
 	llm, err := openai.New(
 		openai.WithToken(cfg.OpenRouterAPIKey),
