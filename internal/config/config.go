@@ -33,6 +33,10 @@ type Config struct {
 
 	// LLM / OpenRouter settings
 	OpenRouterAPIKey string
+
+	APIAddr string
+	APIKey  string
+	DevMode bool
 }
 
 func Load() *Config {
@@ -60,7 +64,12 @@ func Load() *Config {
 		TritonAPIKey:   getEnv("TRITON_API_KEY", ""),
 
 		// LLM / OpenRouter
-		OpenRouterAPIKey: getEnv("OPENROUTER_API_KEY", "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"),
+		OpenRouterAPIKey: getEnv("OPENROUTER_API_KEY", "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"),
+		//
+
+		APIAddr: getEnv("API_ADDR", ":8090"),
+		APIKey:  getEnv("API_KEY", "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"),
+		DevMode: getBoolEnv("DEV", true),
 	}
 }
 
@@ -84,6 +93,15 @@ func getDurationEnv(key string, defaultVal time.Duration) time.Duration {
 	if val := os.Getenv(key); val != "" {
 		if d, err := time.ParseDuration(val); err == nil {
 			return d
+		}
+	}
+	return defaultVal
+}
+
+func getBoolEnv(key string, defaultVal bool) bool {
+	if val := os.Getenv(key); val != "" {
+		if b, err := strconv.ParseBool(val); err == nil {
+			return b
 		}
 	}
 	return defaultVal
