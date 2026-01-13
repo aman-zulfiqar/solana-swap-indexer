@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/ai"
@@ -12,9 +14,24 @@ import (
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/config"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/flags"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/server"
+	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
+
+// env bootstrap function
+func loadEnv(logger *logrus.Logger) {
+	// Get the project root directory (where go.mod is)
+	_, filename, _, _ := runtime.Caller(0)
+	projectRoot := filepath.Join(filepath.Dir(filename), "../..")
+	envPath := filepath.Join(projectRoot, ".env")
+
+	if err := godotenv.Load(envPath); err != nil {
+		logger.Warnf("no .env file found at %s, using system environment variables", envPath)
+	} else {
+		logger.Infof("loaded .env from %s", envPath)
+	}
+}
 
 // main is the entry point for the API server
 // It initializes all dependencies and starts the HTTP server with graceful shutdown
@@ -26,6 +43,9 @@ func main() {
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
 	logger.SetLevel(logrus.InfoLevel)
+
+	// load .env BEFORE anything reads os.Getenv
+	loadEnv(logger)
 
 	// Load and validate configuration from environment variables
 	cfg := config.Load()
