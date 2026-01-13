@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/cache"
@@ -14,8 +16,23 @@ import (
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/storage"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/stream"
 
+	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
+
+// env bootstrap function
+func loadEnv(logger *logrus.Logger) {
+	// Get the project root directory (where go.mod is)
+	_, filename, _, _ := runtime.Caller(0)
+	projectRoot := filepath.Join(filepath.Dir(filename), "../..")
+	envPath := filepath.Join(projectRoot, ".env")
+
+	if err := godotenv.Load(envPath); err != nil {
+		logger.Warnf("no .env file found at %s, using system environment variables", envPath)
+	} else {
+		logger.Infof("loaded .env from %s", envPath)
+	}
+}
 
 // Indexer orchestrates swap event processing
 type Indexer struct {
@@ -94,6 +111,9 @@ func main() {
 		FullTimestamp:   true,
 		TimestampFormat: "2006-01-02 15:04:05",
 	})
+
+	// load .env BEFORE anything reads os.Getenv
+	loadEnv(logger)
 
 	// Set log level from env (default: info)
 	logLevel := os.Getenv("LOG_LEVEL")
