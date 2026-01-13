@@ -272,7 +272,7 @@ func main() {
 
         // React to specific conditions
         if swap.AmountOut > 10 && swap.TokenOut == "SOL" {
-            fmt.Println("🚨 Whale alert!")
+            fmt.Println("Whale alert!")
         }
     }
 }
@@ -458,6 +458,11 @@ docker-compose down -v
 - [ ] Whale detection alerts (> X SOL)
 - [ ] LangChain agent for natural language queries
 
+## Run test
+
+```go
+''go test ./tests -v
+```
 ## License
 
 MIT
