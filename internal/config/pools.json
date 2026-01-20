@@ -1,0 +1,17 @@
+[
+    {
+      "name": "SOL-USDC-legacy",
+      "program_id": "9W959DqEETiGZocYWCQPaJ6sBmUzgfxXfqGeTEdp3aQP",
+      "swap_account": "POOL_SWAP_ACCOUNT_PUBKEY_HERE",
+      "authority": "POOL_AUTHORITY_PDA_HERE",
+      "token_mint_a": "So11111111111111111111111111111111111111112",
+      "token_mint_b": "USDC_MINT_ADDRESS_HERE",
+      "vault_a": "VAULT_A_TOKEN_ACCOUNT_HERE",
+      "vault_b": "VAULT_B_TOKEN_ACCOUNT_HERE",
+      "pool_mint": "LP_TOKEN_MINT_HERE",
+      "fee_account": "FEE_TOKEN_ACCOUNT_HERE",
+      "host_fee_account": "",
+      "fee_numerator": 25,
+      "fee_denominator": 10000
+    }
+  ]
