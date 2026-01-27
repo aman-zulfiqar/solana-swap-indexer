@@ -13,6 +13,7 @@ import (
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/cache"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/config"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/flags"
+	"github.com/aman-zulfiqar/solana-swap-indexer/internal/jupiter"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/server"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -117,6 +118,7 @@ func main() {
 		AIBaseConfig: aiBase,    // Base AI configuration for model overrides
 		DevMode:      devMode,   // Enable detailed error responses in development
 		Logger:       logger,    // Structured logger
+		Jupiter:      jupiter.NewClient(os.Getenv("JUPITER_BASE_URL"), os.Getenv("JUPITER_API_KEY")),
 	}
 
 	// Create HTTP server with configuration and handlers
