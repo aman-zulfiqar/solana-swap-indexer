@@ -34,6 +34,7 @@ func RegisterRoutes(e *echo.Echo, h *Handlers, cfg ServerConfig) {
 	v1.POST("/echo", h.Echo)               // Echo endpoint for testing
 	v1.GET("/swaps/recent", h.RecentSwaps) // Recent swap events
 	v1.GET("/prices/:token", h.Price)      // Token price lookup
+	v1.GET("/quote", h.Quote)              // Jupiter quote proxy (for /swap)
 
 	// AI endpoints with rate limiting
 	aigroup := v1.Group("/ai")

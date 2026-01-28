@@ -11,6 +11,7 @@ import (
 
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/ai"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/flags"
+	"github.com/aman-zulfiqar/solana-swap-indexer/internal/jupiter"
 	"github.com/aman-zulfiqar/solana-swap-indexer/internal/storage"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -24,6 +25,7 @@ type Handlers struct {
 	AIBaseConfig ai.AgentConfig    // Base configuration for AI agents
 	DevMode      bool              // Enable detailed error responses in development
 	Logger       *logrus.Logger    // Structured logger
+	Jupiter      *jupiter.Client   // Jupiter Quote API client (optional)
 }
 
 // err returns a standardized JSON error response
