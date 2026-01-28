@@ -34,96 +34,128 @@ type Config struct {
 	// LLM / OpenRouter settings
 	OpenRouterAPIKey string
 
+	// API
 	APIAddr string
 	APIKey  string
 	DevMode bool
 }
 
+// Load reads all configuration from environment variables
+// Validates all required vars first, then panics with complete list if any are missing
 func Load() *Config {
+	// Validate all required env vars first
+	validateRequiredEnvVars()
+
 	return &Config{
 		// RPC
-		RPCUrl:       getEnv("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.com"),
-		PollInterval: getDurationEnv("POLL_INTERVAL", 30*time.Second),
+		RPCUrl:       mustEnv("SOLANA_RPC_URL"),
+		PollInterval: mustDurationEnv("POLL_INTERVAL"),
 
 		// Redis
-		RedisAddr: getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisAddr: mustEnv("REDIS_ADDR"),
 
 		// ClickHouse
-		ClickHouseAddr:     getEnv("CLICKHOUSE_ADDR", "localhost:9000"),
-		ClickHouseDatabase: getEnv("CLICKHOUSE_DATABASE", "solana"),
-		ClickHouseUsername: getEnv("CLICKHOUSE_USERNAME", "default"),
-		ClickHousePassword: getEnv("CLICKHOUSE_PASSWORD", ""),
+		ClickHouseAddr:     mustEnv("CLICKHOUSE_ADDR"),
+		ClickHouseDatabase: mustEnv("CLICKHOUSE_DATABASE"),
+		ClickHouseUsername: mustEnv("CLICKHOUSE_USERNAME"),
+		ClickHousePassword: mustEnv("CLICKHOUSE_PASSWORD"),
 
 		// HTTP
-		HTTPTimeout:  getDurationEnv("HTTP_TIMEOUT", 30*time.Second),
-		MaxRetries:   getIntEnv("MAX_RETRIES", 5),
-		RetryBackoff: getDurationEnv("RETRY_BACKOFF", 2*time.Second),
+		HTTPTimeout:  mustDurationEnv("HTTP_TIMEOUT"),
+		MaxRetries:   mustIntEnv("MAX_RETRIES"),
+		RetryBackoff: mustDurationEnv("RETRY_BACKOFF"),
 
 		// Stream
-		StreamProvider: getEnv("STREAM_PROVIDER", "rpc"),
-		TritonAPIKey:   getEnv("TRITON_API_KEY", ""),
+		StreamProvider: mustEnv("STREAM_PROVIDER"),
+		TritonAPIKey:   mustEnv("TRITON_API_KEY"),
 
 		// LLM / OpenRouter
-		OpenRouterAPIKey: getEnv("OPENROUTER_API_KEY", "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"),
-		//
+		OpenRouterAPIKey: mustEnv("OPENROUTER_API_KEY"),
 
-		APIAddr: getEnv("API_ADDR", ":8090"),
-		APIKey:  getEnv("API_KEY", "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"),
-		DevMode: getBoolEnv("DEV", true),
+		// API
+		APIAddr: mustEnv("API_ADDR"),
+		APIKey:  mustEnv("API_KEY"),
+		DevMode: mustBoolEnv("DEV"),
 	}
 }
 
-func getEnv(key, defaultVal string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
+// validateRequiredEnvVars checks all required env vars and panics with complete list if any are missing
+func validateRequiredEnvVars() {
+	required := []string{
+		"SOLANA_RPC_URL",
+		"POLL_INTERVAL",
+		"REDIS_ADDR",
+		"CLICKHOUSE_ADDR",
+		"CLICKHOUSE_DATABASE",
+		"CLICKHOUSE_USERNAME",
+		"CLICKHOUSE_PASSWORD",
+		"HTTP_TIMEOUT",
+		"MAX_RETRIES",
+		"RETRY_BACKOFF",
+		"STREAM_PROVIDER",
+		"TRITON_API_KEY",
+		"OPENROUTER_API_KEY",
+		"API_ADDR",
+		"API_KEY",
+		"DEV",
 	}
-	return defaultVal
-}
 
-func getIntEnv(key string, defaultVal int) int {
-	if val := os.Getenv(key); val != "" {
-		if i, err := strconv.Atoi(val); err == nil {
-			return i
-		}
-	}
-	return defaultVal
-}
-
-func getDurationEnv(key string, defaultVal time.Duration) time.Duration {
-	if val := os.Getenv(key); val != "" {
-		if d, err := time.ParseDuration(val); err == nil {
-			return d
-		}
-	}
-	return defaultVal
-}
-
-func getBoolEnv(key string, defaultVal bool) bool {
-	if val := os.Getenv(key); val != "" {
-		if b, err := strconv.ParseBool(val); err == nil {
-			return b
-		}
-	}
-	return defaultVal
-}
-
-// Validate verifies required configuration values are present.
-func (c *Config) Validate() error {
 	var missing []string
-	if c.ClickHouseAddr == "" {
-		missing = append(missing, "CLICKHOUSE_ADDR")
+	for _, key := range required {
+		val := strings.TrimSpace(os.Getenv(key))
+		if val == "" {
+			missing = append(missing, key)
+		}
 	}
-	if c.RedisAddr == "" {
-		missing = append(missing, "REDIS_ADDR")
-	}
-	if c.RPCUrl == "" {
-		missing = append(missing, "SOLANA_RPC_URL")
-	}
-	if c.ClickHouseDatabase == "" {
-		missing = append(missing, "CLICKHOUSE_DATABASE")
-	}
+
 	if len(missing) > 0 {
-		return fmt.Errorf("missing required env(s): %s", strings.Join(missing, ", "))
+		panic(fmt.Sprintf(
+			"missing required environment variables:\n  %s\n\nPlease set all required variables in your .env file.",
+			strings.Join(missing, "\n  "),
+		))
 	}
+}
+
+// mustEnv reads a required string env or panics
+func mustEnv(key string) string {
+	val := strings.TrimSpace(os.Getenv(key))
+	if val == "" {
+		panic(fmt.Sprintf("missing required environment variable: %s", key))
+	}
+	return val
+}
+
+// mustIntEnv reads a required int env or panics
+func mustIntEnv(key string) int {
+	val := mustEnv(key)
+	intVal, err := strconv.Atoi(val)
+	if err != nil {
+		panic(fmt.Sprintf("invalid integer for %s: %v (got: %q)", key, err, val))
+	}
+	return intVal
+}
+
+// mustDurationEnv reads a required duration env or panics
+func mustDurationEnv(key string) time.Duration {
+	val := mustEnv(key)
+	durationVal, err := time.ParseDuration(val)
+	if err != nil {
+		panic(fmt.Sprintf("invalid duration for %s: %v (got: %q). Examples: 30s, 5m, 1h", key, err, val))
+	}
+	return durationVal
+}
+
+// mustBoolEnv reads a required bool env or panics
+func mustBoolEnv(key string) bool {
+	val := mustEnv(key)
+	boolVal, err := strconv.ParseBool(val)
+	if err != nil {
+		panic(fmt.Sprintf("invalid boolean for %s: %v (got: %q). Must be: true, false, 1, 0, t, f", key, err, val))
+	}
+	return boolVal
+}
+
+// Validate is optional since all fields are mustEnv-driven
+func (c *Config) Validate() error {
 	return nil
 }
