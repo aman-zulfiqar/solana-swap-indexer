@@ -42,7 +42,7 @@ func NewRPCPoller(cfg RPCPollerConfig) *RPCPoller {
 
 	if len(cfg.ProgramAddresses) == 0 {
 		cfg.ProgramAddresses = []string{
-			constants.ProgramAddresses["Raydium"],
+			constants.ProgramAddresses["Orca"],
 		}
 	}
 
@@ -252,9 +252,9 @@ func (r *RPCPoller) parseTransaction(ctx context.Context, signature string, bloc
 		AmountIn:  amountIn,
 		AmountOut: amountOut,
 		Price:     price,
-		Fee:       constants.RaydiumFee,
-		Pool:      constants.PoolRaydiumAMM,
-		Dex:       "Raydium",
+		Fee:       constants.OrcaWhirlpoolFee,
+		Pool:      constants.PoolOrcaWhirl,
+		Dex:       "Orca",
 	}
 
 	r.logger.WithFields(logrus.Fields{
