@@ -66,7 +66,7 @@ If you prefer curl over Postman, here are the exact commands that work:
 ```bash
 #start with
 lsof -ti:8090 | xargs kill -9 2>/dev/null || true
-API_KEY=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 go run cmd/api/main.go
+API_KEY=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 go run main.go
 # Health
 curl -s -X GET "http://localhost:8090/v1/health" -H "X-API-Key: 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" | jq .
 
@@ -338,3 +338,43 @@ Common examples:
 6. `GET {{baseUrl}}/v1/swaps/recent?limit=5`
 7. Start ClickHouse + set `OPENROUTER_API_KEY`
 8. `POST {{baseUrl}}/v1/ai/ask`
+
+---
+
+## 10) Quote (Jupiter proxy)
+
+### Request
+- Method: `GET`
+- URL: `{{baseUrl}}/v1/quote`
+- Headers:
+  - `X-API-Key: {{apiKey}}`
+
+Required query params:
+- `inputMint` (string)
+- `outputMint` (string)
+- `amount` (uint64 raw, before decimals)
+
+Optional:
+- `slippageBps` (uint16)
+- `swapMode` (ExactIn|ExactOut)
+- `dexes` (comma-separated) e.g. `dexes=Raydium,Orca%2BV2`
+- `excludeDexes` (comma-separated)
+- `restrictIntermediateTokens` (bool)
+- `onlyDirectRoutes` (bool)
+- `asLegacyTransaction` (bool)
+- `platformFeeBps` (uint16)
+- `maxAccounts` (uint64)
+- `instructionVersion` (V1|V2)
+- `dynamicSlippage` (bool)
+
+### Quick curl
+
+```bash
+curl -s "http://localhost:8090/v1/quote?inputMint=So11111111111111111111111111111111111111112&outputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&amount=100000000&slippageBps=50&swapMode=ExactIn" \
+  -H "X-API-Key: YOUR_API_KEY" | jq .
+```
+
+Notes:
+- This endpoint proxies Jupiter `GET /swap/v1/quote`.
+- If you want Jupiter API key auth, set `JUPITER_API_KEY` in your env.
+- To hit preprod, set `JUPITER_BASE_URL=https://preprod-quote-api.jup.ag`.
