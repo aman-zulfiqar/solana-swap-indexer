@@ -1,57 +1,45 @@
-# Solana Swap Indexer
+# Solana Swap Indexer & Execution Engine
 
-Real-time indexer for tracking Solana DEX swaps with Redis caching, ClickHouse analytics, and Pub/Sub streaming.
+A comprehensive platform for **tracking**, **analyzing**, and **automating** Solana DEX swaps. It combines real-time indexing with an AI-driven execution engine and a modern data dashboard.
 
 ## Features
 
-- **Real-time swap tracking** from Raydium (extensible to Orca, Jupiter)
-- **Redis Pub/Sub** for instant event broadcasting to multiple consumers
-¬- **AI agent (Go/LangChain)** for natural language questions over ClickHouse data
-- **Multiple RPC providers**: Public RPC or Triton
-- **Redis cache** for fast recent data access and token prices
-- **ClickHouse** for long-term analytics and time-series queries
-- **Structured logging** with logrus
-- **Retry logic** with exponential backoff for rate limit handling
-- **Graceful shutdown** with proper resource cleanup
-- **Thread-safe** polling with mutex protection
-- **Interface-based design** for testability and flexibility
+### 🔍 Indexing & Analytics
+- **Real-time Tracking**: Monitors swaps on Raydium, Orca, and Jupiter.
+- **High-Performance Storage**: Uses Redis for hot caching and ClickHouse for historical analytics.
+- **Pub/Sub Streaming**: Broadcasts live swap events via Redis Channels.
+- **Data Dashboard**: Next.js-based UI for exploring swap data and controlling the system.
+
+### 🤖 AI & Execution (SwapEngine)
+- **AI-Driven Intents**: Parses natural language (e.g., "Buy 5 SOL worth of USDC") into executable swaps.
+- **Risk Management**: Enforces daily limits, per-transaction limits, and token whitelists.
+- **Automated Execution**: Handles quoting, slippage protection, transaction simulation, and confirmation.
+- **Safe**: Built-in validation layers before any transaction is signed.
 
 ## Architecture
 
 ```
-Solana RPC
-    │
-    ▼
-┌─────────────────┐
-│   RPC Client    │  ← Retry + Timeout + Backoff
-│  (rpc/client)   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│   RPC Poller    │  ← Poll every 30s, parse token balances
-│ (stream/poller) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│    Indexer      │  ← Process swap events
-│  (cmd/indexer)  │
-└────────┬────────┘
-         │
-    ┌────┴────┬──────────────┐
-    ▼         ▼              ▼
-┌───────┐ ┌────────┐ ┌──────────────┐
-│ Redis │ │ Click  │ │   PUBLISH    │
-│ Cache │ │ House  │ │ "swaps:live" │
-└───────┘ └────────┘ └──────┬───────┘
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │Subscriber│ │Alert Bot │ │WebSocket │
-        │  (CLI)   │ │ (Future) │ │ (Future) │
-        └──────────┘ └──────────┘ └──────────┘
+                                  ┌───────────────┐
+                                  │   User / UI   │
+                                  └───────┬───────┘
+                                          │
+                                          ▼
+┌─────────────────┐       ┌─────────────────────────────────┐
+│  Solana RPC     │       │           API Server            │
+│ (Public/Triton) │◄──────┤       (cmd/api/main.go)         │
+└───────┬─────────┘       └───────┬───────────────┬─────────┘
+        │                         │               │
+        ▼                         ▼               ▼
+┌─────────────────┐       ┌──────────────┐ ┌──────────────┐
+│   RPC Poller    │       │   AI Agent   │ │  SwapEngine  │
+│ (stream/poller) │       │ (LangChain)  │ │ (Automated)  │
+└───────┬─────────┘       └───────┬──────┘ └──────┬───────┘
+        │                         │               │
+        ▼                         ▼               ▼
+┌─────────────────┐       ┌─────────────────────────────────┐
+│     Indexer     │       │      Redis (Cache & Pub/Sub)    │
+│  (cmd/indexer)  │──────►│    ClickHouse (Analytics DB)    │
+└─────────────────┘       └─────────────────────────────────┘
 ```
 
 ## Project Structure
@@ -59,410 +47,141 @@ Solana RPC
 ```
 solana-swap-indexer/
 ├── cmd/
-│   ├── indexer/main.go           # Application entry point
-│   └── subscriber/main.go        # Real-time Pub/Sub viewer
+│   ├── indexer/          # Main data collector & processor
+│   ├── swapengine/       # AI-driven execution engine
+│   ├── ai-agent/         # LLM query interface
+│   ├── api/              # REST API server
+│   └── subscriber/       # CLI Pub/Sub listener
 ├── internal/
-│   ├── config/
-│   │   └── config.go             # Environment configuration
-│   ├── constants/
-│   │   └── constants.go          # Named constants, token mappings
-│   ├── rpc/
-│   │   ├── client.go             # HTTP client with retry/timeout
-│   │   └── types.go              # RPC request/response types
-│   ├── storage/
-│   │   └── interfaces.go         # SwapCache, SwapStore interfaces
-│   ├── cache/
-│   │   ├── redis.go              # Redis + Pub/Sub implementation
-│   │   └── clickhouse.go         # ClickHouse implementation
-│   ├── stream/
-│   │   └── rpc_poller.go         # Transaction polling and parsing
-│   └── models/
-│       └── swap.go               # SwapEvent data model
-├── docker-compose.yml            # Redis + ClickHouse infrastructure
-├── init.sql                      # ClickHouse schema
-└── go.mod
+│   ├── swapengine/       # Core execution logic (Risk, Decision, Executor)
+│   ├── orca/             # Orca DEX integration
+│   ├── jupiter/          # Jupiter aggregator integration
+│   ├── wallet/           # Key management & signing
+│   ├── cache/            # Redis & ClickHouse adapters
+│   └── models/           # Data structs
+├── data-explorer-dashboard/ # Next.js Frontend
+├── docker-compose.yml    # Infrastructure (Redis, ClickHouse)
+└── init.sql              # Database Schema
 ```
 
 ## Prerequisites
 
-- Go 1.21+
-- Docker & Docker Compose
+- **Go** 1.21+
+- **Docker** & Docker Compose
+- **Node.js** 18+ (for Dashboard)
+- **Solana Wallet** (for SwapEngine execution)
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Environment Setup
+
+Create a `.env` file in the root directory. You **must** set these variables:
 
 ```bash
-go mod download
+# Infrastructure
+REDIS_ADDR=localhost:6379
+CLICKHOUSE_ADDR=localhost:9000
+CLICKHOUSE_DATABASE=solana
+CLICKHOUSE_USERNAME=default
+CLICKHOUSE_PASSWORD=dd123456
+
+# Solana
+SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+POLL_INTERVAL=30s
+# Set 'triton' if using Triton RPC, else 'rpc'
+STREAM_PROVIDER=rpc
+TRITON_API_KEY=
+
+# Execution (Required for SwapEngine)
+WALLET_PRIVATE_KEY=your_base58_private_key_here
+
+# API & Security
+API_ADDR=:8080
+API_KEY=secret-api-key
+DEV=true
+
+# AI / LLM
+OPENROUTER_API_KEY=sk-or-your-key
+
+# Resilience
+HTTP_TIMEOUT=30s
+MAX_RETRIES=3
+RETRY_BACKOFF=1s
 ```
 
 ### 2. Start Infrastructure
 
+Start Redis, ClickHouse, and management UIs:
+
 ```bash
 docker-compose up -d
-docker-compose ps
 ```
 
-Services:
-| Service | Port | Description |
-|---------|------|-------------|
-| Redis | 6379 | Cache + Pub/Sub |
-| ClickHouse | 9000 | Analytics DB (native) |
-| ClickHouse | 8123 | Analytics DB (HTTP) |
-| Redis Commander | 8081 | Redis Web UI |
-| Tabix | 8080 | ClickHouse Web UI |
+### 3. Run Services
 
-### 3. Run the Indexer
+You can run each service in a separate terminal:
 
+**A. Indexer** (Collects Data)
 ```bash
-# Default: Public Solana RPC
 go run cmd/indexer/main.go
-
-# With Triton (higher rate limits)
-STREAM_PROVIDER=triton TRITON_API_KEY=your_key go run cmd/indexer/main.go
 ```
 
-### 4. Run the Live Viewer (Pub/Sub)
+**B. API Server** (Backend for UI)
+```bash
+go run cmd/api/main.go
+```
+
+**C. Swap Engine** (Optional - if executing trades)
+```bash
+go run cmd/swapengine/main.go
+```
+
+### 4. Start Dashboard
 
 ```bash
-# In a separate terminal
-go run cmd/subscriber/main.go
+cd data-explorer-dashboard
+pnpm install  # or npm install
+pnpm dev      # or npm run dev
 ```
 
-Output:
-```
-╔════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                              Live Swap Viewer - Solana Swap Indexer (Pub/Sub)                              ║
-╠════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║  Time     │ Pair                 │ Amount In              │ Amount Out             │ Price        │ Sig    ║
-╚════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
-[20:11:47] MEW1...cPP5/SOL     │     100.4987 MEW1...cPP5 │       0.0007 SOL       │     0.000007 │ 4NPPUCL2
-[20:11:29] AGzj...pump/SOL     │ 1148738.6167 AGzj...pump │       0.4074 SOL       │     0.000000 │ 6gY92yTm
-```
+Visit the dashboard at `http://localhost:3000`.
 
-## Configuration
+## Configuration Reference
 
-All settings via environment variables:
+| Category | Variable | Description |
+|----------|----------|-------------|
+| **Solana** | `SOLANA_RPC_URL` | Mainnet/Testnet RPC Endpoint |
+| | `POLL_INTERVAL` | Frequency of indexer polling (e.g. `30s`) |
+| **Storage** | `REDIS_ADDR` | Redis connection string |
+| | `CLICKHOUSE_ADDR` | ClickHouse native port (`9000`) |
+| **SwapEngine** | `WALLET_PRIVATE_KEY` | Private key for signing transactions |
+| **AI** | `OPENROUTER_API_KEY` | API Key for LLM reasoning |
+| **API** | `API_ADDR` | Port for the Go API server |
+| | `API_KEY` | Simple auth key for API requests |
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SOLANA_RPC_URL` | `https://api.mainnet-beta.solana.com` | Solana RPC endpoint |
-| `STREAM_PROVIDER` | `rpc` | Provider: `rpc` or `triton` |
-| `TRITON_API_KEY` | - | Triton API key |
-| `POLL_INTERVAL` | `30s` | Polling interval |
-| `REDIS_ADDR` | `localhost:6379` | Redis address |
-| `CLICKHOUSE_ADDR` | `localhost:9000` | ClickHouse address |
-| `CLICKHOUSE_DATABASE` | `solana` | ClickHouse database |
-| `HTTP_TIMEOUT` | `30s` | HTTP request timeout |
-| `MAX_RETRIES` | `3` | Max retry attempts |
-| `RETRY_BACKOFF` | `1s` | Initial backoff duration |
-| `OPENROUTER_API_KEY` | - | OpenRouter API key for AI agent |
+## Component Details
 
-## AI Agent (Go/LangChain + OpenRouter)
+### Indexer
+The backbone of the system. It polls the Solana blockchain for transactions involving known DEX program IDs (Raydium, Orca, etc.), parses the token balance changes to determine swap amounts, and stores the normalized data.
 
-The AI agent lets you ask natural-language questions about swaps; it generates ClickHouse SQL under the hood.
+### Swap Engine
+An automated trading system documented fully in [SWAPENGINE.md](SWAPENGINE.md).
+- **Decision Engine**: Validates intents.
+- **Risk Manager**: Checks balance, allowances, and slippage.
+- **Executor**: Interacts with the chain.
 
-### Run the AI Agent (CLI)
-
-```bash
-export OPENROUTER_API_KEY=sk-or-...
-
-go run cmd/ai-agent/main.go
-```
-
-Examples:
-
-```text
-> What were the top 5 pairs by total amount_out in the last 24 hours?
-> Show the average price for SOL/USDC over the last 6 hours.
-> Which DEX had the highest total volume today?
-```
-
-Output includes the generated SQL and a concise answer.
-
-## Data Storage
-
-### Redis
-
-Keys:
-- `swaps:recent` - List of last 100 swaps (JSON)
-- `price:{TOKEN}` - Current price (e.g., `price:SOL`)
-
-Pub/Sub Channels:
-- `swaps:live` - Real-time swap events in JSON format
-
-```bash
-# CLI access
-docker exec -it solana-redis redis-cli
-LRANGE swaps:recent 0 9
-GET price:USDC
-
-# Subscribe to live events
-SUBSCRIBE swaps:live
-```
-
-### ClickHouse
-
-Table: `solana.swaps`
-
-```bash
-# CLI access
-docker exec -it solana-clickhouse clickhouse-client
-
-# Query examples
-SELECT * FROM swaps ORDER BY timestamp DESC LIMIT 10;
-SELECT pair, count() as swaps FROM swaps GROUP BY pair ORDER BY swaps DESC;
-```
-
-HTTP access:
-```
-http://localhost:8123/?query=SELECT+*+FROM+swaps+LIMIT+10
-```
-
-## Redis Pub/Sub
-
-The indexer broadcasts every swap event to a Redis Pub/Sub channel, enabling real-time consumers.
-
-### Message Format
-
-```json
-{
-  "signature": "5FW45cJU...",
-  "timestamp": "2025-12-24T17:52:06Z",
-  "pair": "SOL/USDC",
-  "token_in": "SOL",
-  "token_out": "USDC",
-  "amount_in": 3.6154,
-  "amount_out": 439.974,
-  "price": 121.6948,
-  "fee": 0.0025,
-  "pool": "RaydiumAMM",
-  "dex": "Raydium"
-}
-```
-
-### Subscribe in Go Code
-
-```go
-package main
-
-import (
-    "context"
-    "fmt"
-    "github.com/aman-zulfiqar/solana-swap-indexer/internal/cache"
-)
-
-func main() {
-    ctx := context.Background()
-    
-    redisCache, _ := cache.NewRedisCache(ctx, cache.RedisConfig{
-        Addr: "localhost:6379",
-    })
-    defer redisCache.Close()
-
-    // Subscribe to swaps
-    swapChan, _ := redisCache.SubscribeSwaps(ctx)
-
-    for swap := range swapChan {
-        fmt.Printf("New swap: %s - %.4f %s -> %.4f %s\n",
-            swap.Pair,
-            swap.AmountIn, swap.TokenIn,
-            swap.AmountOut, swap.TokenOut,
-        )
-
-        // React to specific conditions
-        if swap.AmountOut > 10 && swap.TokenOut == "SOL" {
-            fmt.Println("Whale alert!")
-        }
-    }
-}
-```
-
-### Pub/Sub API
-
-```go
-// Publisher (Indexer Side)
-func (r *RedisCache) PublishSwap(ctx context.Context, swap *models.SwapEvent) error
-
-// Subscriber (Consumer Side)
-func (r *RedisCache) SubscribeSwaps(ctx context.Context) (<-chan *models.SwapEvent, error)
-```
-
-### Pub/Sub Limitations
-
-1. **No message persistence** - If no subscribers are listening, messages are lost
-2. **No replay** - New subscribers don't receive historical messages
-3. **No acknowledgment** - No guarantee of delivery
-
-For persistent messaging with replay, consider using Redis Streams instead.
-
-## Example Queries
-
-### Recent Activity
-```sql
-SELECT 
-    signature,
-    pair,
-    amount_in,
-    token_in,
-    amount_out,
-    token_out,
-    price
-FROM swaps
-ORDER BY timestamp DESC
-LIMIT 20
-```
-
-### Volume by Pair
-```sql
-SELECT 
-    pair,
-    count() as swap_count,
-    sum(amount_out) as total_volume,
-    avg(price) as avg_price
-FROM swaps
-GROUP BY pair
-ORDER BY total_volume DESC
-LIMIT 10
-```
-
-### Hourly Stats
-```sql
-SELECT 
-    toStartOfHour(timestamp) as hour,
-    count() as swaps,
-    avg(price) as avg_price
-FROM swaps
-WHERE timestamp >= now() - INTERVAL 24 HOUR
-GROUP BY hour
-ORDER BY hour DESC
-```
-
-## Web UIs
-
-### Redis Commander
-- URL: http://localhost:8081
-- Navigate to `swaps:recent` to see cached swaps
-
-### ClickHouse Tabix
-- URL: http://localhost:8080
-- Connection: `http://localhost:8123`
-- Username: `default`
-- Password: (empty)
-- Note: Do not use semicolons at end of queries
-
-## Logs
-
-Sample output:
-```
-2024-12-24 15:30:00 level=info msg="connected to Redis" addr=localhost:6379
-2024-12-24 15:30:00 level=info msg="connected to ClickHouse" addr=localhost:9000 database=solana
-2024-12-24 15:30:00 level=info msg="starting Solana swap indexer" interval=30s provider=rpc
-2024-12-24 15:30:30 level=info msg="found new signatures" count=5
-2024-12-24 15:30:31 level=info msg="parsed swap" amount_in="1.5 SOL" amount_out="188.25 USDC" pair=SOL/USDC
-2024-12-24 15:30:31 level=info msg="published swap to channel" signature=abcd1234 subscribers=2
-2024-12-24 15:30:31 level=info msg="swap processed successfully" pair=SOL/USDC signature=abcd1234
-```
-
-## How It Works
-
-1. **Polling**: Every 30s, fetch new transaction signatures from Raydium program
-2. **Deduplication**: Track `lastSignature` to only fetch new transactions
-3. **Transaction Fetch**: Call `getTransaction` for each signature
-4. **Parsing**: Diff `preTokenBalances` vs `postTokenBalances` to calculate swap amounts
-5. **Token Mapping**: Convert mint addresses to symbols (SOL, USDC, etc.)
-6. **Storage**: Save to Redis (cache) and ClickHouse (analytics)
-7. **Broadcast**: Publish to Redis Pub/Sub for real-time consumers
-
-## Extending
-
-### Add More DEXs
-
-Edit `internal/constants/constants.go`:
-
-```go
-var ProgramAddresses = map[string]string{
-    "Raydium": "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8",
-    "Orca":    "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc",
-    "Jupiter": "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4",
-}
-```
-
-### Add More Tokens
-
-Edit `internal/constants/constants.go`:
-
-```go
-var TokenSymbols = map[string]string{
-    "So11111111111111111111111111111111111111112": "SOL",
-    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
-    // Add more...
-}
-```
-
-### Add New Pub/Sub Consumers
-
-Create a new subscriber service:
-
-```go
-// cmd/alerts/main.go
-swapChan, _ := redisCache.SubscribeSwaps(ctx)
-
-for swap := range swapChan {
-    if swap.AmountOut > 100 && swap.TokenOut == "SOL" {
-        sendTelegramAlert("🚨 Whale: " + swap.Signature)
-    }
-}
-```
+### Data Dashboard
+A web interface to:
+- View live swap feeds.
+- Query historical data using AI ("Show me top volume tokens").
+- Manage feature flags.
 
 ## Troubleshooting
 
-**Rate limit errors (429)?**
-- Increase `POLL_INTERVAL` to 60s or more
-- Use Triton for higher limits
-- Set custom `SOLANA_RPC_URL`
+- **Panic: missing required environment variable**: Ensure your `.env` file contains ALL variables listed in the "Quick Start" section. The system enforces strict config validation.
+- **Connection Refused**: Check if Docker containers are running (`docker-compose ps`).
+- **Rate Limits**: If using public RPC, increase `POLL_INTERVAL` to `60s` or use a paid provider like Triton or Helius.
 
-**No data in ClickHouse?**
-- Check indexer logs for errors
-- Verify ClickHouse: `docker exec -it solana-clickhouse clickhouse-client`
-- Run `SELECT count() FROM swaps`
-
-**Redis connection failed?**
-- Verify: `docker exec -it solana-redis redis-cli ping`
-- Check port 6379 availability
-
-**Empty swap results?**
-- Some transactions are not swaps (e.g., liquidity adds)
-- Check logs for "not a swap transaction" messages
-
-**Subscriber not receiving messages?**
-- Ensure indexer is running (it publishes)
-- Check Redis: `docker exec -it solana-redis redis-cli SUBSCRIBE swaps:live`
-
-## Stopping
-
-```bash
-# Stop services
-docker-compose down
-
-# Stop and remove data
-docker-compose down -v
-```
-
-## Future Enhancements
-
-- [ ] WebSocket server for browser clients
-- [ ] Telegram/Discord alert bot
-- [ ] Filter subscriptions by pair or token
-- [ ] Redis Streams for message persistence
-- [ ] Whale detection alerts (> X SOL)
-- [ ] LangChain agent for natural language queries
-
-## Run test
-
-```go
-''go test ./tests -v
-```
 ## License
 
 MIT
