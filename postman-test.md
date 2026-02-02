@@ -49,7 +49,7 @@ But swaps/prices/flags require Redis.
 
 Create a Postman environment:
 - `baseUrl` = `http://localhost:8090`
-- `apiKey` = `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`
+- `apiKey` = `your api-key`
 
 Required headers (use `{{apiKey}}` in Postman):
 - `X-API-Key: {{apiKey}}`
