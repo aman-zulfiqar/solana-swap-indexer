@@ -83,7 +83,7 @@ REDIS_ADDR=localhost:6379
 CLICKHOUSE_ADDR=localhost:9000
 CLICKHOUSE_DATABASE=solana
 CLICKHOUSE_USERNAME=default
-CLICKHOUSE_PASSWORD=dd123456
+CLICKHOUSE_PASSWORD=your_password_here
 
 # Solana
 SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
@@ -148,16 +148,16 @@ Visit the dashboard at `http://localhost:3000`.
 
 ## Configuration Reference
 
-| Category | Variable | Description |
-|----------|----------|-------------|
-| **Solana** | `SOLANA_RPC_URL` | Mainnet/Testnet RPC Endpoint |
-| | `POLL_INTERVAL` | Frequency of indexer polling (e.g. `30s`) |
-| **Storage** | `REDIS_ADDR` | Redis connection string |
-| | `CLICKHOUSE_ADDR` | ClickHouse native port (`9000`) |
-| **SwapEngine** | `WALLET_PRIVATE_KEY` | Private key for signing transactions |
-| **AI** | `OPENROUTER_API_KEY` | API Key for LLM reasoning |
-| **API** | `API_ADDR` | Port for the Go API server |
-| | `API_KEY` | Simple auth key for API requests |
+| Category        | Variable             | Description |
+|-----------------|----------------------|-------------|
+| **Solana**      | `SOLANA_RPC_URL`     | Mainnet/Testnet RPC Endpoint |
+|                 | `POLL_INTERVAL`      | Frequency of indexer polling (e.g. `30s`) |
+| **Storage**     | `REDIS_ADDR`         | Redis connection string |
+|                 | `CLICKHOUSE_ADDR`    | ClickHouse native port (`9000`) |
+| **SwapEngine**  | `WALLET_PRIVATE_KEY` | Private key for signing transactions |
+| **AI**          | `OPENROUTER_API_KEY` | API Key for LLM reasoning |
+| **API**         | `API_ADDR`           | Port for the Go API server |
+|                 | `API_KEY`            | Simple auth key for API requests |
 
 ## Component Details
 
